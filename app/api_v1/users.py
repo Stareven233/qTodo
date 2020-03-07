@@ -4,6 +4,7 @@ from ..models import User
 from flask import abort, g
 from .. import db
 from .decorators import auth
+import copy
 
 user_fields = {
     'id': fields.Integer,
@@ -30,7 +31,7 @@ class RegisterAPI(Resource):
         user.hash_password(password)
         db.session.add(user)
         db.session.commit()
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['count'] = 1
         response['data']['users'] = marshal(user, user_fields)
         return response, 201
@@ -51,7 +52,7 @@ class LoginAPI(Resource):
         if not user or not user.verify_pw(password):
             abort(400)
         g.current_user = user
-        response = response_template
+        response = copy.deepcopy(response_template)
         response.update({'data': marshal(user, user_fields)})
         return response, 200
 
@@ -59,14 +60,11 @@ class LoginAPI(Resource):
 class TokenAPI(Resource):
     decorators = [auth.login_required]
 
-    def __init__(self):
-        response = response_template
-
     def get(self):
         # 双令牌无感知刷新
         access_token = g.current_user.generate_auth_token(expiration=30*60)
         refresh_token = g.current_user.generate_auth_token(expiration=25*60*60)
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['access_token'] = access_token.decode('ascii')
         response['data']['refresh_token'] = refresh_token.decode('ascii')
         return response, 200
@@ -89,7 +87,7 @@ class SetPasswordAPI(Resource):
         user.hash_password(args['password2'])
         db.session.add(user)
         db.session.commit()
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['count'] = 1
         response['data']['users'] = marshal(user, user_fields)
         return response, 200

@@ -5,6 +5,7 @@ from .decorators import auth
 from flask import g, abort
 from .. import db
 from datetime import datetime
+import copy
 
 
 task_fields = {
@@ -36,7 +37,7 @@ class TaskListAPI(Resource):
         tasks = tasks.all()
 
         # response['data'] = [marshal(tasks, task_fields), len(tasks)][args['content'] == 'count']
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['count'] = len(tasks)
         response['data']['tasks'] = marshal(tasks, task_fields)
         return response, 200
@@ -53,26 +54,24 @@ class TaskListAPI(Resource):
         task = Task(text=args['text'], deadline=args['deadline'], author=g.current_user)
         db.session.add(task)
         db.session.commit()
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['count'] = 1
         response['data']['tasks'] = marshal(task, task_fields)
         return response, 201
 
     def put(self):  # 修改所有事项
-        self.reqparse.add_argument('done', type=int, required=True, location='json')
+        self.reqparse.add_argument('done', type=bool, required=True, location='json')
         args = self.reqparse.parse_args()
         tasks = g.current_user.task
 
         if args['state'] is not None:
             tasks = tasks.filter_by(done=bool(args['state']))
         tasks = tasks.all()
-        changes = dict()
-        changes['done'] = args['done'] and bool(args['done'])  # 全体修改只允许done
-        tasks = list(map(lambda t: t.alter(**changes), tasks))
+        tasks = list(map(lambda t: t.alter(done=args['done']), tasks))  # 全体修改只允许done
 
         db.session.add_all(tasks)
         db.session.commit()
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['count'] = len(tasks)
         response['data']['tasks'] = marshal(tasks, task_fields)
         return response, 200
@@ -88,7 +87,7 @@ class TaskListAPI(Resource):
         for t in tasks:
             db.session.delete(t)
         db.session.commit()
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['count'] = len(tasks)
         response['data']['tasks'] = marshal(tasks, task_fields)
         return response, 200
@@ -106,29 +105,24 @@ class TaskAPI(Resource):
         task = Task.query.filter_by(id=id).first_or_404()
         if task.author_id != g.current_user.id:
             abort(403)
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['count'] = 1
         response['data']['tasks'] = marshal(task, task_fields)
         return response, 200
 
     def put(self, id):
-        self.reqparse.add_argument('done', type=int, required=False, location='json')
+        self.reqparse.add_argument('done', type=bool, required=False, location='json')
         self.reqparse.add_argument('text', type=str, required=False, location='json')
         self.reqparse.add_argument('deadline', type=str, required=False, location='json')
         args = self.reqparse.parse_args()
         task = Task.query.filter_by(id=id).first_or_404()
         if task.author_id != g.current_user.id:
             abort(403)
-
-        changes = dict()
-        changes['done'] = args['done'] and bool(args['done'])
-        changes['text'] = args['text']
-        changes['deadline'] = args['deadline']
-        task = task.alter(**changes)
+        task = task.alter(**args)
 
         db.session.add(task)
         db.session.commit()
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['count'] = 1
         response['data']['tasks'] = marshal(task, task_fields)
         return response, 200
@@ -139,7 +133,7 @@ class TaskAPI(Resource):
             abort(403)
         db.session.delete(task)
         db.session.commit()
-        response = response_template
+        response = copy.deepcopy(response_template)
         response['data']['count'] = 1
         response['data']['tasks'] = marshal(task, task_fields)
         return response, 200
