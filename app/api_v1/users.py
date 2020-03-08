@@ -70,7 +70,7 @@ class TokenAPI(Resource):
         return response, 200
 
 
-class SetPasswordAPI(Resource):
+class PasswordAPI(Resource):
     decorators = [auth.login_required]
 
     def __init__(self):
@@ -100,4 +100,4 @@ class SetPasswordAPI(Resource):
 api.add_resource(RegisterAPI, '/user/register', endpoint='register')
 # api.add_resource(LoginAPI, '/user/login', endpoint='login')
 api.add_resource(TokenAPI, '/user/token', endpoint='token')
-api.add_resource(SetPasswordAPI, '/user/setpassword', endpoint='setpassword')
+api.add_resource(PasswordAPI, '/user/password', endpoint='password')
